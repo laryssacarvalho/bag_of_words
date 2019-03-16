@@ -35,12 +35,31 @@ def normalize_text(phrase_vector, phrases_vectors):
             vector[i] = phrase_vector[i] * math.log10(len(phrases_vectors)/calculate_frequency_document(i, phrases_vectors))
     return vector
 
+def normalize_text_l2(phrase_vector, l2_norm):
+    vector = [0] * len(translate)            
+    for i in range(0,len(phrase_vector)):
+        if(phrase_vector[i] > 0):
+            vector[i] = phrase_vector[i]/l2_norm
+    return vector
+
 def cosine_similarity(phrase_vector1, phrase_vector2):
     cosine = 0
     for word1, word2 in zip(phrase_vector1, phrase_vector2):
         if word1 > 0 and word2 > 0:
-            cosine += word1*word2        
+            cosine = np.dot(phrase_vector1,phrase_vector2) / (np.linalg.norm(phrase_vector1) * np.linalg.norm(phrase_vector2))
     return cosine
+
+def test_cosine(vectors1, vectors2, value):
+    vector_cosine = []
+    for i in range(0,len(vectors1)):
+        for j in range(0, len(vectors2)):
+            cosine = cosine_similarity(vectors1[i], vectors2[j])
+            if cosine > value:
+                l = [i, j]
+                sum = np.sum(l)
+                if(sum/2 == i):
+                    vector_cosine.append(l)
+    return vector_cosine
 
 classifications = pd.read_csv('perguntas.csv', encoding = 'utf-8')
 
@@ -80,22 +99,19 @@ translate = {word:index for word,index in tuplas}
 textVectorsQuestion1 = [vetorize_text(text, translate) for text in textsTokenQuestion1]
 textVectorsQuestion2 = [vetorize_text(text, translate) for text in textsTokenQuestion2]
 
+# normalizando os dados com L2 Norm
+normalVectorQuestion1L2 = [normalize_text_l2(vector, np.linalg.norm(vector)) for vector in textVectorsQuestion1]
+normalVectorQuestion2L2 = [normalize_text_l2(vector, np.linalg.norm(vector)) for vector in textVectorsQuestion2]
+
+# normalizando os dados com tf-idf
 normalVectorQuestion1 = [normalize_text(vector, textVectorsQuestion1) for vector in textVectorsQuestion1]
 normalVectorQuestion2 = [normalize_text(vector, textVectorsQuestion2) for vector in textVectorsQuestion2]
 
-#percorre cada pergunta de entrada (pergunta 1) com todas as perguntas cadastradas (pergunta 2) para verificar qual mais se encaixa
-vector_cosine = []
-for i in range(0,len(normalVectorQuestion1)):
-    for j in range(0, len(normalVectorQuestion2)):
-        cosine = cosine_similarity(normalVectorQuestion1[i], normalVectorQuestion2[j])
-        if cosine > 1:
-            l = [i, j]
-            sum = np.sum(l)
-            if(sum/2 == i):
-                vector_cosine.append(l)
-print(vector_cosine)
-print("Taxa de acerto: {}".format(len(vector_cosine)/len(normalVectorQuestion1)))
+vector_cosine_l2 = test_cosine(normalVectorQuestion1L2, normalVectorQuestion2L2, 0.5)
+vector_cosine_tfidf = test_cosine(normalVectorQuestion1, normalVectorQuestion2, 0.5)
 
+taxa_acerto_l2 = len(vector_cosine_l2)/len(normalVectorQuestion1L2)
+taxa_acerto_tfidf = len(vector_cosine_tfidf)/len(normalVectorQuestion1)
 
-
-        
+print("Taxa de acerto L2: {}".format(taxa_acerto_l2))
+print("Taxa de acerto TF-IDF: {}".format(taxa_acerto_tfidf))
